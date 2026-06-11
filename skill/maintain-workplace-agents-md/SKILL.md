@@ -54,7 +54,7 @@ repo and edited via that repo's normal workflow.
 ```bash
 # From the user's cwd, walk up to find the workspace AGENTS.md.
 # In this user's setup the workspace root is
-#   /Users/petervanonselen/workspace
+#   /Users/user/workspace
 # but detect it generically: the workspace root is the first
 # ancestor that contains BOTH AGENTS.md AND multiple sibling repos
 # (not a single repo).
