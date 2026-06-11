@@ -1,14 +1,6 @@
 ---
 name: pr-review
-description: |
-  Review a pull request, address PR review comments, draft inline review
-  comments, or follow up on a previous PR review. Use when the prompt
-  mentions "PR", "pull request", a PR number (e.g. "PR-1538", "#1538",
-  "1572"), "review comments", "inline comments", "what would comments
-  look like", "post comments", "address comments", or paths containing
-  "pr-reviews/". Provides staff-level review (TypeScript, Node.js,
-  Next.js, Go) plus the post-review comment-drafting and -posting
-  workflow.
+description: Review a pull request, address PR review comments, draft inline review comments, or follow up on a previous PR review. Use when the prompt mentions "PR", "pull request", a PR number (e.g. "PR-1538", "#1538", "1572"), "review comments", "inline comments", "what would comments look like", "post comments", "address comments", or paths containing "pr-reviews/". Provides staff-level review (TypeScript, Node.js, Next.js, Go) plus the post-review comment-drafting and -posting workflow.
 ---
 
 # pr-review
@@ -23,11 +15,11 @@ mentoring through review feedback.
 This skill covers three related tasks. Identify the mode from the user's
 framing before doing anything else.
 
-| Mode | User says things like | What you do |
-|---|---|---|
-| **1. Initial review** | "review PR <N>", "review this branch", "use pr-review skill", "staff-engineer review" | Pre-flight → read → write structured review to a file |
-| **2. Follow-up triage** | "look at PR-<N>.md and the code", "what's urgent in PR <N>", "have they addressed any of these", "PR-<N> urgent issues and comment status" | Re-read existing review + new author responses; re-classify findings |
-| **3. Comment drafting / posting** | "what would comments look like", "add these comments to the pr inline", "post review", "post inline comments" | Convert findings into a single atomic review payload and submit it |
+| Mode                              | User says things like                                                                                                               | What you do                                                          |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| **1. Initial review**             | "review PR <N>", "review this branch", "use pr-review skill", "staff-engineer review"                                                | Pre-flight → read → write structured review to a file                |
+| **2. Follow-up triage**           | "look at PR-<N>.md and the code", "what's urgent in PR <N>", "have they addressed any of these", "PR-<N> urgent issues and comment status" | Re-read existing review + new author responses; re-classify findings |
+| **3. Comment drafting / posting** | "what would comments look like", "add these comments to the pr inline", "post review", "post inline comments"                        | Convert findings into a single atomic review payload and submit it   |
 
 When ambiguous, ask which mode. Never silently slide between modes — they
 have different outputs.
@@ -40,34 +32,41 @@ Do these in this order, in parallel where possible:
 
 1. **Identify the PR number.** In priority order:
    - Explicit number in the prompt (`#1538`, `PR-1538`, `1572`).
-   - Branch-name derivation: current branch `sma-2708-foo` →
-     `gh pr list --state all --search "SMA-2708" --json number,title,headRefName,state`.
+   - Branch-name derivation: current branch `proj-1234-foo` →
+     `gh pr list --state all --search "PROJ-1234" --json number,title,headRefName,state`
+     (adapt the ticket prefix to the repo's branch-naming convention).
    - If still ambiguous, run `gh pr list --state open --json number,title,headRefName,author` and ask the user.
 2. **Get PR metadata in one call:**
-   ```bash
+
+   ```
    gh pr view <N> --json \
      number,title,body,author,baseRefName,headRefName,state,\
      additions,deletions,changedFiles,labels,reviewDecision,url
    ```
+
 3. **Size check:**
-   ```bash
+
+   ```
    gh pr diff <N> --stat
    ```
    If the PR changes **>30 files or >2000 lines**, *stop and ask the user
    which area to focus on* before reading any source files. Reserve full-file
    reads for files the diff shows >20 lines or any meaningful logic change.
+
 4. **Existing review state:**
-   ```bash
+
+   ```
    gh api repos/<owner>/<repo>/pulls/<N>/comments     # inline comments
    gh api repos/<owner>/<repo>/pulls/<N>/reviews      # review summaries
    ```
    You need this so you don't redundantly raise issues that have already been
    raised, addressed, or actively rejected by the author.
+
 5. **Project context:** read
    - the repo's `AGENTS.md`,
-   - then the workspace `AGENTS.md` one level up if it exists
-     (`/Users/petervanonselen/workspace/economist/e-commerce/AGENTS.md` for
-     this user's e-commerce work),
+   - then the workspace-level `AGENTS.md` one directory up if it exists
+     (the workspace root is the first ancestor containing multiple sibling
+     repos),
    - then `README.md` / `CONTRIBUTING.md` if either exists.
 6. **Branch handling.** If reviewing a PR for a branch *other than the
    current one*, do **not** `git checkout` over the user's working tree.
@@ -106,43 +105,52 @@ Organise the review into these sections. **Skip any section with no
 findings** — empty sections add noise.
 
 #### 1. Summary
-- One-paragraph: what the PR does, why, and the linked Jira ticket if any.
+
+- One-paragraph: what the PR does, why, and the linked ticket if any.
 - Files changed, lines added/removed.
 
 #### 2. Correctness
+
 Logic errors, off-by-one, missing edge cases. Incorrect API/library use.
 Race conditions or concurrency issues (Go goroutines, async Node.js).
 Missing or swallowed errors.
 
 #### 3. Design & architecture
+
 Fit with existing architecture. Single responsibility. Justified
 abstractions. Server vs. Client component boundaries (Next.js). Server
 Actions, data-fetching, caching patterns.
 
 #### 4. Types & type safety
+
 Unnecessary `any`, `as`, or `!`. Opportunities for generics, discriminated
 unions, branded types. In Go: minimal interfaces, consistent
 pointer/value receivers.
 
 #### 5. Performance
+
 Unnecessary re-renders (missing memoization, unstable references). N+1
 queries, missing pagination, unbounded fetches. Blocking the Node.js event
 loop. Goroutine leaks or missing `context` cancellation in Go. Client-bundle
 size impact.
 
 #### 6. Security
+
 Injection (SQL, XSS, command). Secrets in code/config. Missing input
 validation. Auth/authz gaps. Unsafe `dangerouslySetInnerHTML` or equivalent.
 
 #### 7. Testing
+
 New behaviour covered. Tests asserting the right things (not snapshot
 matching). Edge-case coverage. Readable, isolated, non-brittle tests.
 
 #### 8. Readability & maintainability
+
 Naming. Dead code, commented-out code, TODOs without context. Overly
 complex logic. Missing or misleading comments/docs.
 
 #### 9. Nits & style
+
 Minor formatting, import ordering, unused imports. Label clearly as nits.
 
 ### Finding format
@@ -156,6 +164,7 @@ For each finding:
 ```
 
 Severity:
+
 - **Blocker** — must fix before merge. Correctness or security.
 - **Should fix** — strongly recommended. Design, performance, or testing gap.
 - **Nit** — optional. Style or minor readability.
@@ -166,6 +175,7 @@ work briefly when you see it. Be respectful but direct.
 ### Verdict
 
 End with **Verdict — one of:**
+
 - **Approve** — no blockers, ship it.
 - **Approve with suggestions** — no blockers, but should-fix items worth
   addressing.
@@ -179,9 +189,9 @@ End with **Verdict — one of:**
 
 In priority order, write to:
 
-1. `<repo-root>/temp/pr-reviews/PR-<N>.md` (preferred — the workspace
-   AGENTS.md already lists `temp/` as scratch; add the path to `.gitignore`
-   if needed).
+1. `<repo-root>/temp/pr-reviews/PR-<N>.md` (preferred — list `temp/` as a
+   scratch directory in the workspace AGENTS.md; add the path to
+   `.gitignore` if needed).
 2. `~/.local/share/opencode/pr-reviews/PR-<N>.md` (fallback if the repo is
    read-only or has no `temp/`).
 
@@ -217,6 +227,7 @@ For each finding in the original review, classify:
   rewritten unrelated to the finding.
 
 Output: a short markdown report that
+
 1. lists all Blockers first (with current status),
 2. then Should-fixes,
 3. omits Nits unless explicitly asked,
@@ -246,7 +257,8 @@ acknowledge"*. If they haven't been specific, ask once:
 ### Step 2 — Build the payload
 
 Get the head SHA:
-```bash
+
+```
 gh api repos/<owner>/<repo>/pulls/<N> --jq .head.sha
 ```
 
@@ -254,7 +266,7 @@ Build a single payload `{review.json}` with all selected findings as
 **inline comments** on that SHA. Save to a tmp file (this one *is* fine in
 `/tmp/`):
 
-```json
+```
 {
   "commit_id": "<HEAD_SHA>",
   "event": "COMMENT",
@@ -279,6 +291,7 @@ Build a single payload `{review.json}` with all selected findings as
 ```
 
 Notes on the payload:
+
 - `line` is the position in the **new file** (use `start_line` + `line` for
   multi-line comments; `start_side` and `side` must match).
 - `body` should be the finding body in the same markdown shape you produced
@@ -293,12 +306,13 @@ Notes on the payload:
 This matches how reviewers see it in the GitHub UI (one review, threaded
 comments) and is trivially recoverable if the user wants to delete the lot.
 
-```bash
+```
 gh api -X POST repos/<owner>/<repo>/pulls/<N>/reviews \
   --input /tmp/pr-<N>-review.json
 ```
 
 After the API returns successfully, print:
+
 - the review URL (from the response `html_url`),
 - a one-line summary of what was posted (`N inline comments, event=COMMENT`).
 
@@ -311,7 +325,7 @@ Only fall back to per-comment `POST /pulls/<N>/comments` when the user
 *explicitly* asks (e.g. "post just comment 2", a one-off) or when the
 atomic review fails twice. In that case use:
 
-```bash
+```
 gh api -X POST repos/<owner>/<repo>/pulls/<N>/comments \
   -f commit_id="<SHA>" -f path="<path>" -F line=<N> -f side=RIGHT \
   -f body="<body>"
@@ -327,7 +341,7 @@ gh api -X POST repos/<owner>/<repo>/pulls/<N>/comments \
 - **Suggest concrete fixes** — show a snippet or describe the change in one
   line.
 - **Acknowledge good work.** A brief "this is well-handled" matters,
-  especially with contractors and junior engineers.
+  especially with less experienced engineers.
 - **Be respectful but direct.** Don't hedge. If something is wrong, say it
   clearly with severity.
 
@@ -342,6 +356,6 @@ gh api -X POST repos/<owner>/<repo>/pulls/<N>/comments \
 - `git checkout`-ing the PR branch over the user's working tree.
 - Posting per-comment when an atomic review would do.
 - Skipping the workspace-level AGENTS.md — it contains cross-cutting
-  guidance (e.g. "Checkout flow change → likely touches sma-checkout +
-  commerce-services-poc + kong-gateway-config") that often catches review
+  guidance (e.g. "a change to the purchase flow likely touches the frontend
+  app + the backend service + the gateway config") that often catches review
   gaps.
